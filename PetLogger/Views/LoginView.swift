@@ -5,17 +5,25 @@ struct LoginView: View {
     @State private var email    = ""
     @State private var password = ""
     @State private var error: String? = nil
-    @State private var loading = false
+    @State private var loading  = false
+    @State private var showSignUp       = false
+    @State private var showForgotPass   = false
 
     var body: some View {
         NavigationStack {
             VStack(spacing: 24) {
+                Spacer()
+
                 Image(systemName: "pawprint.fill")
                     .font(.system(size: 64))
                     .foregroundColor(.blue)
 
                 Text("Pet Logger")
                     .font(.largeTitle.bold())
+
+                Text("Track your pet's health in one place")
+                    .font(.subheadline)
+                    .foregroundColor(.secondary)
 
                 VStack(spacing: 12) {
                     TextField("Email", text: $email)
@@ -29,28 +37,47 @@ struct LoginView: View {
                 .padding(.horizontal)
 
                 if let error = error {
-                    Text(error).foregroundColor(.red).font(.caption)
+                    Text(error)
+                        .foregroundColor(.red)
+                        .font(.caption)
+                        .multilineTextAlignment(.center)
+                        .padding(.horizontal)
                 }
 
                 Button(action: signIn) {
                     if loading {
-                        ProgressView()
+                        ProgressView().frame(maxWidth: .infinity)
                     } else {
                         Text("Sign In").frame(maxWidth: .infinity)
                     }
                 }
                 .buttonStyle(.borderedProminent)
+                .disabled(email.isEmpty || password.isEmpty || loading)
                 .padding(.horizontal)
-                .disabled(loading)
+
+                Button("Forgot Password?") { showForgotPass = true }
+                    .font(.caption)
+                    .foregroundColor(.blue)
+
+                Divider().padding(.horizontal)
+
+                HStack {
+                    Text("Don't have an account?")
+                        .foregroundColor(.secondary)
+                    Button("Sign Up") { showSignUp = true }
+                        .fontWeight(.semibold)
+                }
+                .font(.subheadline)
+
+                Spacer()
             }
-            .padding()
-            .navigationTitle("Welcome")
+            .sheet(isPresented: $showSignUp) { SignUpView() }
+            .sheet(isPresented: $showForgotPass) { ForgotPasswordView() }
         }
     }
 
     func signIn() {
-        loading = true
-        error = nil
+        loading = true; error = nil
         Task {
             do {
                 try await auth.signIn(email: email, password: password)
@@ -61,3 +88,4 @@ struct LoginView: View {
         }
     }
 }
+
