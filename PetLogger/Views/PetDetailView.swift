@@ -4,10 +4,11 @@ struct PetDetailView: View {
     let pet: Pet
     @ObservedObject var listVM: PetListViewModel
     @StateObject private var vm = MetricsViewModel()
-    @State private var showLogMetric = false
-    @State private var showEdit      = false
-    @State private var showPhoto     = false
-    @State private var showDeleteConfirm = false
+    @State private var showLogMetric      = false
+    @State private var showEdit           = false
+    @State private var showPhoto          = false
+    @State private var showDeleteConfirm  = false
+    @State private var showMedSchedule    = false
     @Environment(\.dismiss) private var dismiss
 
     var body: some View {
@@ -16,9 +17,7 @@ struct PetDetailView: View {
                 LabeledContent("Name",    value: pet.name)
                 LabeledContent("Species", value: pet.species.capitalized)
                 LabeledContent("Breed",   value: pet.breed)
-                if let weight = pet.weight {
-                    LabeledContent("Weight", value: "\(weight) lbs")
-                }
+                if let w = pet.weight { LabeledContent("Weight", value: "\(w) lbs") }
             }
 
             Section("Health Log") {
@@ -26,17 +25,10 @@ struct PetDetailView: View {
                 else if vm.metrics.isEmpty {
                     Text("No metrics logged yet").foregroundColor(.secondary)
                 } else {
-                    ForEach(vm.metrics) { metric in
-                        MetricRowView(metric: metric)
-                    }
-                    .onDelete { indexSet in
-                        Task {
-                            for i in indexSet {
-                                let m = vm.metrics[i]
-                                await vm.deleteMetric(metricId: m.id)
-                            }
+                    ForEach(vm.metrics) { metric in MetricRowView(metric: metric) }
+                        .onDelete { idx in
+                            Task { for i in idx { await vm.deleteMetric(metricId: vm.metrics[i].id) } }
                         }
-                    }
                 }
             }
         }
@@ -44,6 +36,7 @@ struct PetDetailView: View {
         .navigationBarTitleDisplayMode(.large)
         .toolbar {
             ToolbarItemGroup(placement: .navigationBarTrailing) {
+                Button { showMedSchedule = true } label: { Image(systemName: "bell.badge") }
                 Button { showPhoto = true } label: { Image(systemName: "camera.fill") }
                 Button { showLogMetric = true } label: { Image(systemName: "plus.circle") }
                 Menu {
@@ -54,20 +47,14 @@ struct PetDetailView: View {
                 } label: { Image(systemName: "ellipsis.circle") }
             }
         }
-        .sheet(isPresented: $showLogMetric) { LogMetricView(vm: vm, petId: pet.id) }
-        .sheet(isPresented: $showEdit)      { EditPetView(vm: listVM, pet: pet) }
-        .sheet(isPresented: $showPhoto)     { PhotoUploadView(petId: pet.id) }
+        .sheet(isPresented: $showLogMetric)   { LogMetricView(vm: vm, petId: pet.id) }
+        .sheet(isPresented: $showEdit)        { EditPetView(vm: listVM, pet: pet) }
+        .sheet(isPresented: $showPhoto)       { PhotoUploadView(petId: pet.id) }
+        .sheet(isPresented: $showMedSchedule) { MedicationScheduleView(pet: pet) }
         .confirmationDialog("Delete \(pet.name)?", isPresented: $showDeleteConfirm, titleVisibility: .visible) {
-            Button("Delete", role: .destructive) {
-                Task {
-                    await listVM.deletePet(petId: pet.id)
-                    dismiss()
-                }
-            }
+            Button("Delete", role: .destructive) { Task { await listVM.deletePet(petId: pet.id); dismiss() } }
             Button("Cancel", role: .cancel) {}
-        } message: {
-            Text("This will permanently delete \(pet.name) and all health records.")
-        }
+        } message: { Text("This will permanently delete \(pet.name) and all health records.") }
         .task { await vm.loadMetrics(petId: pet.id) }
     }
 }
@@ -82,9 +69,7 @@ struct MetricRowView: View {
                 Text("\(metric.value) \(metric.unit)").font(.subheadline).bold()
             }
             Text(metric.timestamp.prefix(10)).font(.caption).foregroundColor(.secondary)
-            if !metric.notes.isEmpty {
-                Text(metric.notes).font(.caption).foregroundColor(.secondary)
-            }
+            if !metric.notes.isEmpty { Text(metric.notes).font(.caption).foregroundColor(.secondary) }
         }
         .padding(.vertical, 2)
     }
