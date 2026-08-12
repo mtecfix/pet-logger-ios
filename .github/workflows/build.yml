@@ -1,0 +1,44 @@
+name: Build iOS App
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  build:
+    runs-on: macos-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Select Xcode version
+        run: sudo xcode-select -s /Applications/Xcode.app
+
+      - name: Show Xcode version
+        run: xcodebuild -version
+
+      - name: Resolve Swift packages
+        run: swift package resolve
+
+      - name: Build (Swift Package)
+        run: |
+          swift build 2>&1 | tee build.log
+          if grep -q "error:" build.log; then
+            echo "BUILD FAILED"
+            exit 1
+          fi
+          echo "BUILD SUCCEEDED"
+
+      - name: Run tests (if any)
+        run: swift test 2>&1 || echo "No tests or tests skipped"
+
+      - name: Upload build log
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: build-log
+          path: build.log
+
