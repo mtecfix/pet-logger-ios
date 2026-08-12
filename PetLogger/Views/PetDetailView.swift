@@ -2,30 +2,40 @@ import SwiftUI
 
 struct PetDetailView: View {
     let pet: Pet
+    @ObservedObject var listVM: PetListViewModel
     @StateObject private var vm = MetricsViewModel()
     @State private var showLogMetric = false
-    @State private var exportURL: URL? = nil
+    @State private var showEdit      = false
+    @State private var showPhoto     = false
+    @State private var showDeleteConfirm = false
+    @Environment(\.dismiss) private var dismiss
 
     var body: some View {
         List {
             Section("Profile") {
-                LabeledContent("Name", value: pet.name)
+                LabeledContent("Name",    value: pet.name)
                 LabeledContent("Species", value: pet.species.capitalized)
-                LabeledContent("Breed", value: pet.breed)
+                LabeledContent("Breed",   value: pet.breed)
                 if let weight = pet.weight {
                     LabeledContent("Weight", value: "\(weight) lbs")
                 }
             }
 
             Section("Health Log") {
-                if vm.isLoading {
-                    ProgressView()
-                } else if vm.metrics.isEmpty {
-                    Text("No metrics logged yet")
-                        .foregroundColor(.secondary)
+                if vm.isLoading { ProgressView() }
+                else if vm.metrics.isEmpty {
+                    Text("No metrics logged yet").foregroundColor(.secondary)
                 } else {
                     ForEach(vm.metrics) { metric in
                         MetricRowView(metric: metric)
+                    }
+                    .onDelete { indexSet in
+                        Task {
+                            for i in indexSet {
+                                let m = vm.metrics[i]
+                                await vm.deleteMetric(metricId: m.id)
+                            }
+                        }
                     }
                 }
             }
@@ -34,26 +44,31 @@ struct PetDetailView: View {
         .navigationBarTitleDisplayMode(.large)
         .toolbar {
             ToolbarItemGroup(placement: .navigationBarTrailing) {
-                Button(action: { showLogMetric = true }) {
-                    Image(systemName: "plus.circle")
-                }
-                Button(action: exportHistory) {
-                    Image(systemName: "square.and.arrow.up")
-                }
+                Button { showPhoto = true } label: { Image(systemName: "camera.fill") }
+                Button { showLogMetric = true } label: { Image(systemName: "plus.circle") }
+                Menu {
+                    Button { showEdit = true } label: { Label("Edit Pet", systemImage: "pencil") }
+                    Button(role: .destructive) { showDeleteConfirm = true } label: {
+                        Label("Delete Pet", systemImage: "trash")
+                    }
+                } label: { Image(systemName: "ellipsis.circle") }
             }
         }
-        .sheet(isPresented: $showLogMetric) {
-            LogMetricView(vm: vm, petId: pet.id)
+        .sheet(isPresented: $showLogMetric) { LogMetricView(vm: vm, petId: pet.id) }
+        .sheet(isPresented: $showEdit)      { EditPetView(vm: listVM, pet: pet) }
+        .sheet(isPresented: $showPhoto)     { PhotoUploadView(petId: pet.id) }
+        .confirmationDialog("Delete \(pet.name)?", isPresented: $showDeleteConfirm, titleVisibility: .visible) {
+            Button("Delete", role: .destructive) {
+                Task {
+                    await listVM.deletePet(petId: pet.id)
+                    dismiss()
+                }
+            }
+            Button("Cancel", role: .cancel) {}
+        } message: {
+            Text("This will permanently delete \(pet.name) and all health records.")
         }
-        .task {
-            await vm.loadMetrics(petId: pet.id)
-        }
-    }
-
-    func exportHistory() {
-        Task {
-            exportURL = await vm.exportHistory(petId: pet.id)
-        }
+        .task { await vm.loadMetrics(petId: pet.id) }
     }
 }
 
