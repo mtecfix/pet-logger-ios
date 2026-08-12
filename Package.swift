@@ -7,19 +7,15 @@ let package = Package(
     products: [
         .library(name: "PetLogger", targets: ["PetLogger"])
     ],
-    dependencies: [
-        .package(url: "https://github.com/aws-amplify/amplify-swift", from: "2.0.0")
-    ],
     targets: [
         .target(
             name: "PetLogger",
-            dependencies: [
-                .product(name: "Amplify", package: "amplify-swift"),
-                .product(name: "AWSCognitoAuthPlugin", package: "amplify-swift"),
-                .product(name: "AWSAPIPlugin", package: "amplify-swift"),
-                .product(name: "AWSS3StoragePlugin", package: "amplify-swift")
-            ]
+            path: "PetLogger"
         ),
-        .testTarget(name: "PetLoggerTests", dependencies: ["PetLogger"])
+        .testTarget(
+            name: "PetLoggerTests",
+            dependencies: ["PetLogger"],
+            path: "Tests/PetLoggerTests"
+        )
     ]
 )
