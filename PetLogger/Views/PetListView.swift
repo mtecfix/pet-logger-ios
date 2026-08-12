@@ -11,18 +11,13 @@ struct PetListView: View {
                     ProgressView("Loading pets...")
                 } else if vm.pets.isEmpty {
                     VStack(spacing: 16) {
-                        Image(systemName: "pawprint")
-                            .font(.system(size: 48))
-                            .foregroundColor(.secondary)
-                        Text("No pets yet")
-                            .font(.headline)
-                        Text("Tap + to add your first pet")
-                            .font(.caption)
-                            .foregroundColor(.secondary)
+                        Image(systemName: "pawprint").font(.system(size: 48)).foregroundColor(.secondary)
+                        Text("No pets yet").font(.headline)
+                        Text("Tap + to add your first pet").font(.caption).foregroundColor(.secondary)
                     }
                 } else {
                     List(vm.pets) { pet in
-                        NavigationLink(destination: PetDetailView(pet: pet)) {
+                        NavigationLink(destination: PetDetailView(pet: pet, listVM: vm)) {
                             PetRowView(pet: pet)
                         }
                     }
@@ -31,17 +26,11 @@ struct PetListView: View {
             .navigationTitle("My Pets")
             .toolbar {
                 ToolbarItem(placement: .navigationBarTrailing) {
-                    Button(action: { showAddPet = true }) {
-                        Image(systemName: "plus")
-                    }
+                    Button(action: { showAddPet = true }) { Image(systemName: "plus") }
                 }
             }
-            .sheet(isPresented: $showAddPet) {
-                AddPetView(vm: vm)
-            }
-            .task {
-                await vm.loadPets()
-            }
+            .sheet(isPresented: $showAddPet) { AddPetView(vm: vm) }
+            .task { await vm.loadPets() }
         }
     }
 }
@@ -51,13 +40,10 @@ struct PetRowView: View {
     var body: some View {
         HStack {
             Image(systemName: pet.species == "dog" ? "dog.fill" : "cat.fill")
-                .foregroundColor(.blue)
-                .frame(width: 36, height: 36)
+                .foregroundColor(.blue).frame(width: 36, height: 36)
             VStack(alignment: .leading) {
                 Text(pet.name).font(.headline)
-                Text("\(pet.species.capitalized) · \(pet.breed)")
-                    .font(.caption)
-                    .foregroundColor(.secondary)
+                Text("\(pet.species.capitalized) · \(pet.breed)").font(.caption).foregroundColor(.secondary)
             }
         }
         .padding(.vertical, 4)
